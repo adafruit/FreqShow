@@ -32,6 +32,7 @@ import pygame
 import freqshow
 import ui
 
+
 # Color and gradient interpolation functions used by waterfall spectrogram.
 def lerp(x, x0, x1, y0, y1):
 	"""Linear interpolation of value y given min and max y values (y0 and y1),
@@ -262,6 +263,7 @@ class SettingsList(ViewBase):
 
 	def centerfreq_accept(self, value):
 		self.model.set_center_freq(float(value))
+		self.controller.waterfall.clear_waterfall()
 		self.controller.change_to_settings()
 
 	def sample_click(self, button):
@@ -271,6 +273,7 @@ class SettingsList(ViewBase):
 
 	def sample_accept(self, value):
 		self.model.set_sample_rate(float(value))
+		self.controller.waterfall.clear_waterfall()
 		self.controller.change_to_settings()
 
 	def gain_click(self, button):
@@ -279,6 +282,7 @@ class SettingsList(ViewBase):
 
 	def gain_accept(self, value):
 		self.model.set_gain(value)
+		self.controller.waterfall.clear_waterfall()
 		self.controller.change_to_settings()
 
 
@@ -364,11 +368,13 @@ class SpectrogramBase(ViewBase):
 
 
 class WaterfallSpectrogram(SpectrogramBase):
-	def __init__(self, model, controller, scale=(0.0, 10.0)):
+	def __init__(self, model, controller):
 		super(WaterfallSpectrogram, self).__init__(model, controller)
-		self.scale = scale
 		self.color_func = gradient_func(freqshow.WATERFALL_GRAD)
 		self.waterfall = pygame.Surface((model.width, model.height))
+
+	def clear_waterfall(self):
+		self.waterfall.fill(freqshow.MAIN_BG)
 
 	def render_spectrogram(self, screen):
 		# Grab spectrogram data.
@@ -376,7 +382,6 @@ class WaterfallSpectrogram(SpectrogramBase):
 		# Scroll up the waterfall display.
 		self.waterfall.scroll(0, -1)
 		# Scale the FFT values to the range 0 to 1.
-		#freqs = (freqs-self.scale[0])/(self.scale[1]-self.scale[0])
 		freqs = (freqs-self.model.min_intensity)/self.model.range
 		# Convert scaled values to pixels drawn at the bottom of the display.
 		x, y, width, height = screen.get_rect()
