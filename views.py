@@ -128,7 +128,7 @@ class NumberDialog(ViewBase):
 	"""Dialog which asks the user to enter a numeric value."""
 
 	def __init__(self, model, label_text, unit_text, initial='0', accept=None,
-		cancel=None, has_auto=False):
+		cancel=None, has_auto=False, allow_negative=False):
 		"""Create number dialog for provided model and with given label and unit
 		text.  Can provide an optional initial value (default to 0), an accept
 		callback function which is called when the user accepts the dialog (and
@@ -155,7 +155,12 @@ class NumberDialog(ViewBase):
 		self.buttons.add(1, 4, '0', font_size=freqshow.NUM_FONT, click=self.number_click)
 		self.buttons.add(2, 4, '.', font_size=freqshow.NUM_FONT, click=self.decimal_click)
 		self.buttons.add(0, 4, 'DELETE', click=self.delete_click)
-		self.buttons.add(3, 1, 'CLEAR',  click=self.clear_click)
+		if not allow_negative:
+			# Render a clear button if only positive values are allowed.
+			self.buttons.add(3, 1, 'CLEAR', click=self.clear_click)
+		else:
+			# Render a +/- toggle if negative values are allowed.
+			self.buttons.add(3, 1, '+/-', click=self.posneg_click)
 		self.buttons.add(3, 3, 'CANCEL', click=self.cancel_click,
 			bg_color=freqshow.CANCEL_BG)
 		self.buttons.add(3, 4, 'ACCEPT', click=self.accept_click,
@@ -228,6 +233,18 @@ class NumberDialog(ViewBase):
 			# Add number to end of value.
 			self.value += button.text
 
+	def posneg_click(self, button):
+		if self.value == 'AUTO':
+			# Do nothing if value is auto.
+			return
+		else:
+			if self.value[0] == '-':
+				# Swap negative to positive by removing leading minus.
+				self.value = self.value[1:]
+			else:
+				# Swap positive to negative by adding leading minus.
+				self.value = '-' + self.value
+
 
 class SettingsList(ViewBase):
 	"""Setting list view. Allows user to modify some model configuration."""
@@ -235,16 +252,19 @@ class SettingsList(ViewBase):
 	def __init__(self, model, controller):
 		self.model      = model
 		self.controller = controller
-		centerfreq = model.get_center_freq()
-		samplerate = model.get_sample_rate()
-		gain       = model.get_gain()
-		centerfreq_text = 'CENTER FREQ: {0:0.2f} MHz'.format(centerfreq)
-		samplerate_text = 'SAMPLE RATE: {0:0.2f} MHz'.format(samplerate)
-		gain_text       = 'GAIN: {0} dB'.format(gain)
+		# Create button labels with current model values.
+		centerfreq_text = 'CENTER FREQ: {0:0.2f} MHz'.format(model.get_center_freq())
+		samplerate_text = 'SAMPLE RATE: {0:0.2f} MHz'.format(model.get_sample_rate())
+		gain_text       = 'GAIN: {0} dB'.format(model.get_gain())
+		min_text        = 'MIN: {0} dB'.format(model.get_min_string())
+		max_text        = 'MAX: {0} dB'.format(model.get_max_string())
+		# Create buttons.
 		self.buttons = ui.ButtonGrid(model.width, model.height, 4, 5)
-		self.buttons.add(0, 0, centerfreq_text, colspan=4, click=self.centerfreq_click),
-		self.buttons.add(0, 1, samplerate_text, colspan=4, click=self.sample_click),
-		self.buttons.add(0, 2, gain_text,       colspan=4, click=self.gain_click),
+		self.buttons.add(0, 0, centerfreq_text, colspan=4, click=self.centerfreq_click)
+		self.buttons.add(0, 1, samplerate_text, colspan=4, click=self.sample_click)
+		self.buttons.add(0, 2, gain_text,       colspan=4, click=self.gain_click)
+		self.buttons.add(0, 3, min_text,        colspan=2, click=self.min_click)
+		self.buttons.add(2, 3, max_text,        colspan=2, click=self.max_click)
 		self.buttons.add(0, 4, 'BACK', click=self.controller.change_to_main)
 
 	def render(self, screen):
@@ -278,10 +298,31 @@ class SettingsList(ViewBase):
 
 	def gain_click(self, button):
 		self.controller.number_dialog('GAIN:', 'dB',
-			initial=self.model.get_gain(), accept=self.gain_accept, has_auto=True)
+			initial=self.model.get_gain(), accept=self.gain_accept, 
+			has_auto=True)
 
 	def gain_accept(self, value):
 		self.model.set_gain(value)
+		self.controller.waterfall.clear_waterfall()
+		self.controller.change_to_settings()
+
+	def min_click(self, button):
+		self.controller.number_dialog('MIN:', 'dB',
+			initial=self.model.get_min_string(), accept=self.min_accept, 
+			has_auto=True, allow_negative=True)
+
+	def min_accept(self, value):
+		self.model.set_min_intensity(value)
+		self.controller.waterfall.clear_waterfall()
+		self.controller.change_to_settings()
+
+	def max_click(self, button):
+		self.controller.number_dialog('MAX:', 'dB',
+			initial=self.model.get_max_string(), accept=self.max_accept, 
+			has_auto=True, allow_negative=True)
+
+	def max_accept(self, value):
+		self.model.set_max_intensity(value)
 		self.controller.waterfall.clear_waterfall()
 		self.controller.change_to_settings()
 

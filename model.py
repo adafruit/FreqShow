@@ -36,7 +36,11 @@ class FreqShowModel(object):
 		# Set properties that will be used by views.
 		self.width = width
 		self.height = height
-		self._clear_intensity()
+		# Initialize auto scaling both min and max intensity (Y axis of plots).
+		self.min_auto_scale = True
+		self.max_auto_scale = True
+		self.set_min_intensity('AUTO')
+		self.set_max_intensity('AUTO')
 		# Initialize RTL-SDR library.
 		self.sdr = RtlSdr()
 		self.set_center_freq(90.3)
@@ -44,8 +48,10 @@ class FreqShowModel(object):
 		self.set_gain('AUTO')
 
 	def _clear_intensity(self):
-		self.min_intensity = None
-		self.max_intensity = None
+		if self.min_auto_scale:
+			self.min_intensity = None
+		if self.max_auto_scale:
+			self.max_intensity = None
 		self.range = None
 
 	def get_center_freq(self):
@@ -82,7 +88,7 @@ class FreqShowModel(object):
 		if self.auto_gain:
 			return 'AUTO'
 		else:
-			return self.sdr.get_gain()
+			return '{0:0.1f}'.format(self.sdr.get_gain())
 
 	def set_gain(self, gain_db):
 		"""Set gain of tuner.  Can be the string 'AUTO' for automatic gain
@@ -102,6 +108,46 @@ class FreqShowModel(object):
 				# adding an error message dialog.
 				pass
 
+	def get_min_string(self):
+		"""Return string with the appropriate minimum intensity value, either
+		'AUTO' or the min intensity in decibels (rounded to no decimals).
+		"""
+		if self.min_auto_scale:
+			return 'AUTO'
+		else:
+			return '{0:0.0f}'.format(self.min_intensity)
+
+	def set_min_intensity(self, intensity):
+		"""Set Y axis minimum intensity in decibels (i.e. dB value at bottom of 
+		spectrograms).  Can also pass 'AUTO' to enable auto scaling of value.
+		"""
+		if intensity == 'AUTO':
+			self.min_auto_scale = True
+		else:
+			self.min_auto_scale = False
+			self.min_intensity = float(intensity)
+		self._clear_intensity()
+
+	def get_max_string(self):
+		"""Return string with the appropriate maximum intensity value, either
+		'AUTO' or the min intensity in decibels (rounded to no decimals).
+		"""
+		if self.max_auto_scale:
+			return 'AUTO'
+		else:
+			return '{0:0.0f}'.format(self.max_intensity)
+
+	def set_max_intensity(self, intensity):
+		"""Set Y axis maximum intensity in decibels (i.e. dB value at top of 
+		spectrograms).  Can also pass 'AUTO' to enable auto scaling of value.
+		"""
+		if intensity == 'AUTO':
+			self.max_auto_scale = True
+		else:
+			self.max_auto_scale = False
+			self.max_intensity = float(intensity)
+		self._clear_intensity()
+
 	def get_data(self):
 		"""Get spectrogram data from the tuner.  Will return width number of
 		values which are the intensities of each frequency bucket (i.e. FFT of
@@ -119,17 +165,16 @@ class FreqShowModel(object):
 		freqs = np.fft.fftshift(freqs)
 		# Convert to decibels.
 		freqs = 20.0*np.log10(freqs)
-		# Update model's min and max intensities.
-		min_intensity = np.min(freqs)
-		max_intensity = np.max(freqs)
-		if self.min_intensity is None:
-			self.min_intensity = min_intensity
-		else:
-			self.min_intensity = min(min_intensity, self.min_intensity)
-		if self.max_intensity is None:
-			self.max_intensity = max_intensity
-		else:
-			self.max_intensity = max(max_intensity, self.max_intensity)
+		# Update model's min and max intensities when auto scaling each value.
+		if self.min_auto_scale:
+			min_intensity = np.min(freqs)
+			self.min_intensity = min_intensity if self.min_intensity is None \
+				else min(min_intensity, self.min_intensity)
+		if self.max_auto_scale:
+			max_intensity = np.max(freqs)
+			self.max_intensity = max_intensity if self.max_intensity is None \
+				else max(max_intensity, self.max_intensity)
+		# Update intensity range (length between min and max intensity).
 		self.range = self.max_intensity - self.min_intensity
 		# Return frequency intensities.
 		return freqs
