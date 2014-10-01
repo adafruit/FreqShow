@@ -57,7 +57,12 @@ def get_font(size):
 
 def render_text(text, size=33, fg=(255, 255, 255), bg=(0, 0, 0)):
 	"""Render the provided text to a surface which is returned."""
-	return get_font(size).render(text, True, fg, bg)
+	if bg is not None:
+		# Optimized case when the background is known.
+		return get_font(size).render(text, True, fg, bg)
+	else:
+		# Less optimized case with transparent background.
+		return get_font(size).render(text, True, fg)
 
 
 class Button(object):

@@ -318,8 +318,9 @@ class SpectrogramBase(ViewBase):
 		screen.fill(freqshow.MAIN_BG)
 		if self.overlay_enabled:
 			# Draw shrunken spectrogram with overlaid buttons and axes values.
-			self.render_spectrogram(screen.subsurface((0, self.buttons.row_size,
-				self.model.width, self.model.height-2*self.buttons.row_size)))
+			spect_rect = (0, self.buttons.row_size, self.model.width,
+				self.model.height-2*self.buttons.row_size)
+			self.render_spectrogram(screen.subsurface(spect_rect))
 			# Draw hash marks.
 			self.render_hash(screen, 0)
 			self.render_hash(screen, self.model.width/2)
@@ -344,6 +345,16 @@ class SpectrogramBase(ViewBase):
 				size=freqshow.MAIN_FONT)
 			screen.blit(label, ui.align(label.get_rect(), bottom_row,
 				horizontal=ui.ALIGN_RIGHT))
+			# Render min intensity in bottom left.
+			label = ui.render_text('{0:0.0f} dB'.format(self.model.min_intensity),
+				size=freqshow.MAIN_FONT)
+			screen.blit(label, ui.align(label.get_rect(), spect_rect,
+				horizontal=ui.ALIGN_LEFT, vertical=ui.ALIGN_BOTTOM))
+			# Render max intensity in top left.
+			label = ui.render_text('{0:0.0f} dB'.format(self.model.max_intensity),
+				size=freqshow.MAIN_FONT)
+			screen.blit(label, ui.align(label.get_rect(), spect_rect,
+				horizontal=ui.ALIGN_LEFT, vertical=ui.ALIGN_TOP))
 			# Draw the buttons.
 			self.buttons.render(screen)
 		else:
@@ -360,7 +371,7 @@ class SpectrogramBase(ViewBase):
 			self.buttons.click(location)
 
 	def quit_click(self, button):
-		self.controller.message_dialog('Quit: Are you sure?',
+		self.controller.message_dialog('QUIT: Are you sure?',
 			accept=self.quit_accept)
 
 	def quit_accept(self):
@@ -368,6 +379,8 @@ class SpectrogramBase(ViewBase):
 
 
 class WaterfallSpectrogram(SpectrogramBase):
+	"""Scrolling waterfall plot of spectrogram data."""
+
 	def __init__(self, model, controller):
 		super(WaterfallSpectrogram, self).__init__(model, controller)
 		self.color_func = gradient_func(freqshow.WATERFALL_GRAD)
@@ -387,21 +400,18 @@ class WaterfallSpectrogram(SpectrogramBase):
 		x, y, width, height = screen.get_rect()
 		wx, wy, wwidth, wheight = self.waterfall.get_rect()
 		offset = wheight - height
+		# Draw FFT values mapped through the gradient function to a color.
 		self.waterfall.lock()
-		mid = width/2
-		# Draw first half of FFT values (positive frequencies) after mid point.
-		for i in range(mid, width):
-			power = clamp(freqs[i-mid], 0.0, 1.0)
-			self.waterfall.set_at((i, wheight-1), self.color_func(power))
-		# Draw second half of FFT values (negative frequencies) before mid point.
-		for i in range(mid):
-			power = clamp(freqs[i+mid], 0.0, 1.0)
+		for i in range(width):
+			power = clamp(freqs[i], 0.0, 1.0)
 			self.waterfall.set_at((i, wheight-1), self.color_func(power))
 		self.waterfall.unlock()
 		screen.blit(self.waterfall, (0, 0), area=(0, offset, width, height))
 
 
 class InstantSpectrogram(SpectrogramBase):
+	"""Instantaneous point in time line plot of the spectrogram."""
+
 	def __init__(self, model, controller):
 		super(InstantSpectrogram, self).__init__(model, controller)
 
@@ -414,18 +424,9 @@ class InstantSpectrogram(SpectrogramBase):
 		freqs = height-np.floor(((freqs-self.model.min_intensity)/self.model.range)*height)
 		# Render frequency graph.
 		screen.fill(freqshow.MAIN_BG)
-		mid = width/2
-		# Draw first half of FFT values (positive frequencies) after mid point.
-		ylast = freqs[mid-1]
-		for i in range(mid, width):
-			y = freqs[i]
-			pygame.draw.line(screen, freqshow.INSTANT_LINE, (i-mid-1, ylast),
-				(i-mid, y))
-			ylast = y
-		# Draw second half of FFT values (negative frequencies) before mid point.
+		# Draw line segments to join each FFT result bin.
 		ylast = freqs[0]
-		for i in range(1, mid):
+		for i in range(1, width):
 			y = freqs[i]
-			pygame.draw.line(screen, freqshow.INSTANT_LINE, (i+mid-1, ylast),
-				(i+mid, y))
+			pygame.draw.line(screen, freqshow.INSTANT_LINE, (i-1, ylast), (i, y))
 			ylast = y

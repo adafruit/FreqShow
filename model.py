@@ -108,10 +108,17 @@ class FreqShowModel(object):
 		radio samples).
 		"""
 		# Get width number of raw samples so the number of frequency bins is
-		# the same as the display width.
-		samples = self.sdr.read_samples(freqshow.SDR_SAMPLE_SIZE)[0:self.width]
+		# the same as the display width.  Add two because there will be mean/DC
+		# values in the results which are ignored.
+		samples = self.sdr.read_samples(freqshow.SDR_SAMPLE_SIZE)[0:self.width+2]
 		# Run an FFT and take the absolute value to get frequency magnitudes.
 		freqs = np.absolute(np.fft.fft(samples))
+		# Ignore the mean/DC values at the ends.
+		freqs = freqs[1:-1]
+		# Shift FFT result positions to put center frequency in center.
+		freqs = np.fft.fftshift(freqs)
+		# Convert to decibels.
+		freqs = 20.0*np.log10(freqs)
 		# Update model's min and max intensities.
 		min_intensity = np.min(freqs)
 		max_intensity = np.max(freqs)
