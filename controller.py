@@ -26,7 +26,6 @@
 # SOFTWARE.
 from views import *
 import subprocess
-import time
 
 class FreqShowController(object):
 	"""Class which controls the views shown in the application and mediates
