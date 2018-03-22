@@ -25,12 +25,18 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 from views import *
-
+import subprocess
+import time
 
 class FreqShowController(object):
 	"""Class which controls the views shown in the application and mediates
 	changing between views.
 	"""
+        rtl_fm_process = None
+        aplay_process = None
+        demodulating = False
+        prev_center_freq = 90.3
+
 	def __init__(self, model):
 		"""Initialize controller with specified FreqShow model."""
 		self.model = model
@@ -42,7 +48,36 @@ class FreqShowController(object):
 		self._current_view = None
 		self.change_to_instant()
 
-	def change_view(self, view):
+        def demodulate(self, *args):
+            if not self.demodulating:
+                if self.rtl_fm_process is not None:
+                    self.rtl_fm_process.terminate()
+
+                if self.aplay_process is not None:
+                    self.aplay_process.terminate()
+
+                self.model.close_sdr()
+
+                self.prev_center_freq = self.model.get_center_freq()
+                freq = self.prev_center_freq * 1000000.0
+                self.rtl_fm_process = subprocess.Popen(["rtl_fm", "-M", "fm", "-s", "200000", "-r", "48000", "-f", str(freq) ], stdout=subprocess.PIPE)
+                self.aplay_process = subprocess.Popen(["aplay", "-r", "48000", "-f", "S16_LE"], stdin=self.rtl_fm_process.stdout)
+                self.demodulating = True
+            else:
+                if self.rtl_fm_process is not None:
+                    self.rtl_fm_process.terminate()
+
+                if self.aplay_process is not None:
+                    self.aplay_process.terminate()
+                self.demodulating = False
+                #reopen sdr for system
+                self.model.open_sdr()
+                self.model.set_center_freq(self.prev_center_freq)
+
+        def change_view(self, view):
+                if self.demodulating:
+                    self.demodulate()
+
 		"""Change to specified view."""
 		self._prev_view = self._current_view
 		self._current_view = view
