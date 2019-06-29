@@ -26,7 +26,7 @@ import numpy as np
 from rtlsdr import *
 
 import freqshow
-
+import time
 
 class FreqShowModel(object):
 	def __init__(self, width, height):
@@ -47,6 +47,14 @@ class FreqShowModel(object):
 		self.set_sample_rate(2.4)
 		self.set_gain('AUTO')
 
+        def close_sdr(self):
+            self.sdr.close()
+
+        def open_sdr(self):
+            self.sdr.close()
+            time.sleep(1)
+            self.sdr.open()
+
 	def _clear_intensity(self):
 		if self.min_auto_scale:
 			self.min_intensity = None
@@ -59,7 +67,7 @@ class FreqShowModel(object):
 		return self.sdr.get_center_freq()/1000000.0
 
 	def set_center_freq(self, freq_mhz):
-		"""Set tuner center frequency to provided megahertz value."""
+                """Set tuner center frequency to provided megahertz value."""
 		try:
 			self.sdr.set_center_freq(freq_mhz*1000000.0)
 			self._clear_intensity()

@@ -265,7 +265,8 @@ class SettingsList(ViewBase):
 		self.buttons.add(0, 2, gain_text,       colspan=4, click=self.gain_click)
 		self.buttons.add(0, 3, min_text,        colspan=2, click=self.min_click)
 		self.buttons.add(2, 3, max_text,        colspan=2, click=self.max_click)
-		self.buttons.add(0, 4, 'BACK', click=self.controller.change_to_main)
+		self.buttons.add(0, 4, 'Demodulation', colspan=2, click=self.controller.demodulate)
+		self.buttons.add(2, 4, 'BACK', colspan=2, click=self.controller.change_to_main)
 
 	def render(self, screen):
 		# Clear view and render buttons.
@@ -339,6 +340,7 @@ class SpectrogramBase(ViewBase):
 		self.buttons.add(3, 0, 'QUIT', click=self.quit_click,
 			bg_color=freqshow.CANCEL_BG)
 		self.overlay_enabled = True
+                model.open_sdr()
 
 	def render_spectrogram(self, screen):
 		"""Subclass should implement spectorgram rendering in the provided
