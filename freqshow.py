@@ -69,11 +69,6 @@ ui.Button.border_px    = 2
 
 
 if __name__ == '__main__':
-	# Initialize pygame and SDL to use the PiTFT display and touchscreen.
-	os.putenv('SDL_VIDEODRIVER', 'fbcon')
-	os.putenv('SDL_FBDEV'      , '/dev/fb1')
-	os.putenv('SDL_MOUSEDRV'   , 'TSLIB')
-	os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
 	pygame.display.init()
 	pygame.font.init()
 	pygame.mouse.set_visible(False)
@@ -95,8 +90,8 @@ if __name__ == '__main__':
 	while True:
 		# Process any events (only mouse events for now).
 		for event in pygame.event.get():
-			if event.type is pygame.MOUSEBUTTONDOWN \
-				and (time.time() - lastclick) >= CLICK_DEBOUNCE:
+			if (event.type == pygame.MOUSEBUTTONDOWN) \
+				and (time.time() - lastclick >= CLICK_DEBOUNCE):
 				lastclick = time.time()
 				fscontroller.current().click(pygame.mouse.get_pos())
 		# Update and render the current view.
